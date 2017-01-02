@@ -4,7 +4,20 @@ require "date"
 require "active_support/all"
 require "base64"
 
+class Time
+  def floor(seconds = 60)
+    Time.at((self.to_f / seconds).floor * seconds).utc
+  end
+end
+
 set :root, File.dirname(__FILE__)
+
+configure do
+  $diskcache = Diskcached.new(File.join(settings.root, 'cache'))
+  unless ENV["RACK_ENV"] == "development"
+    $diskcache.flush # ensure caches are empty on startup
+  end
+end
 
 def last_3_months
   current = Date.today.beginning_of_month
@@ -29,23 +42,31 @@ get "/" do
   end_date = date.end_of_month.strftime("%Y%m%d")
 
 
-  info = api_request("/account/who_am_i", http).parse
+  info = $diskcache.cache("company_info") { api_request("/account/who_am_i", http).parse }
   @company_name = info["company"]["name"]
   @date = date
 
-  @users = api_request("/people", http).parse.inject({}) do |a, e|
-    a[e["user"]["id"]] = ActiveSupport::HashWithIndifferentAccess.new(e["user"])
-    a
+  @users = $diskcache.cache("users") do
+    api_request("/people", http).parse.inject({}) do |a, e|
+      a[e["user"]["id"]] = ActiveSupport::HashWithIndifferentAccess.new(e["user"])
+      a
+    end
   end
 
-  projects = api_request("/projects", http)
-               .parse
-               .map { |proj| proj["project"] }
+  projects = $diskcache.cache("projects") do
+    api_request("/projects", http)
+      .parse
+      .map { |proj| proj["project"] }
+  end
 
   @projects = projects.map do |project|
     total_hours = 0.0
 
-    times = api_request("/projects/#{project['id']}/entries?from=#{start_date}&to=#{end_date}", http).parse
+    ts = Time.now.floor(10.minutes).to_i
+    times = $diskcache.cache("project-#{project['id']}-#{ts}") do
+      api_request("/projects/#{project['id']}/entries?from=#{start_date}&to=#{end_date}", http).parse
+    end
+
     next if times.empty?
 
     times = times.map do |day|

@@ -10,6 +10,8 @@ gem 'sinatra'
 # Serve with puma
 gem 'puma'
 
+gem 'diskcached'
+
 group :development do
   gem 'shotgun'
   gem 'guard'
