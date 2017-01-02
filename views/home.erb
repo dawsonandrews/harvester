@@ -15,7 +15,7 @@
 <pre>
 <% project[:times].each do |time| %>
   <% user = @users[time[:user_id]] %>
-  <%= time[:hours] %>h - (<% "#{user[:first_name]} #{user[:last_name]}" %>) <%= time[:notes] %>
+  <%= time[:hours] %>h - (<%= "#{user[:first_name]} #{user[:last_name]}" %>) <%= time[:notes] %>
 <% end %>
 </pre>
     </div>
