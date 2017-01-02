@@ -1,0 +1,23 @@
+<% @last_3_months.each do |month| %>
+  <a href="/?date=<%= month[:date_str] %>"><%= month[:name] %></a> |
+<% end %>
+
+
+<div class="page-header">
+  <h1><%= @company_name %> timesheets <small><%= @date.strftime('%B %Y') %></small></h1>
+</div>
+
+<% @projects.each do |project| %>
+  <div class="panel panel-default">
+    <div class="panel-heading"><%= project[:name] %> - <%= project[:total_hours] %>h</div>
+
+    <div class="panel-body">
+<pre>
+<% project[:times].each do |time| %>
+  <% user = @users[time[:user_id]] %>
+  <%= time[:hours] %>h - (<% "#{user[:first_name]} #{user[:last_name]}" %>) <%= time[:notes] %>
+<% end %>
+</pre>
+    </div>
+  </div>
+<% end %>
