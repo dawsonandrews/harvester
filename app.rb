@@ -34,6 +34,7 @@ end
 get "/" do
   base_url = "https://#{ENV['HARVEST_SUBDOMAIN']}.harvestapp.com"
   http = HTTP.persistent(base_url)
+  cache_ts = Time.now.floor(10.minutes).to_i
 
   @last_3_months = last_3_months
   date = Date.parse(last_3_months[1][:date_str])
@@ -53,7 +54,7 @@ get "/" do
     end
   end
 
-  projects = $diskcache.cache("projects") do
+  projects = $diskcache.cache("projects-#{cache_ts}") do
     api_request("/projects", http)
       .parse
       .map { |proj| proj["project"] }
@@ -62,8 +63,7 @@ get "/" do
   @projects = projects.map do |project|
     total_hours = 0.0
 
-    ts = Time.now.floor(10.minutes).to_i
-    times = $diskcache.cache("project-#{project['id']}-#{ts}") do
+    times = $diskcache.cache("project-#{project['id']}-#{start_date}-#{cache_ts}") do
       api_request("/projects/#{project['id']}/entries?from=#{start_date}&to=#{end_date}", http).parse
     end
 
