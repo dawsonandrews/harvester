@@ -19,6 +19,9 @@ def last_3_months
 end
 
 get "/" do
+  base_url = "https://#{ENV['HARVEST_SUBDOMAIN']}.harvestapp.com"
+  http = HTTP.persistent(base_url)
+
   @last_3_months = last_3_months
   date = Date.parse(last_3_months[1][:date_str])
   date = Date.parse(params["date"]) if params["date"]
@@ -26,23 +29,23 @@ get "/" do
   end_date = date.end_of_month.strftime("%Y%m%d")
 
 
-  info = api_request("/account/who_am_i").parse
+  info = api_request("/account/who_am_i", http).parse
   @company_name = info["company"]["name"]
   @date = date
 
-  @users = api_request("/people").parse.inject({}) do |a, e|
+  @users = api_request("/people", http).parse.inject({}) do |a, e|
     a[e["user"]["id"]] = ActiveSupport::HashWithIndifferentAccess.new(e["user"])
     a
   end
 
-  projects = api_request("/projects")
+  projects = api_request("/projects", http)
                .parse
                .map { |proj| proj["project"] }
 
   @projects = projects.map do |project|
     total_hours = 0.0
 
-    times = api_request("/projects/#{project['id']}/entries?from=#{start_date}&to=#{end_date}").parse
+    times = api_request("/projects/#{project['id']}/entries?from=#{start_date}&to=#{end_date}", http).parse
     next if times.empty?
 
     times = times.map do |day|
@@ -53,15 +56,16 @@ get "/" do
     ActiveSupport::HashWithIndifferentAccess.new(project.merge(total_hours: total_hours, times: times))
   end.compact
 
+  http.close
+
   erb :home
 end
 
-def api_request(path)
-  base_url = "https://#{ENV['HARVEST_SUBDOMAIN']}.harvestapp.com"
+def api_request(path, http)
   api_token = Base64.strict_encode64("#{ENV['HARVEST_EMAIL']}:#{ENV['HARVEST_PASSWORD']}")
 
-  HTTP
+  http
     .auth("Basic #{api_token}")
     .headers(accept: "application/json")
-    .get("#{base_url}#{path}")
+    .get(path)
 end
