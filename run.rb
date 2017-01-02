@@ -23,8 +23,9 @@ start_date = date.beginning_of_month.strftime("%Y%m%d")
 end_date = date.end_of_month.strftime("%Y%m%d")
 
 info = api_request("/account/who_am_i").parse
+company_name = info["company"]["name"]
 
-puts company_name = info["company"]["name"]
+puts "#{company_name} timesheets for #{date.strftime('%B %Y')}"
 
 users = api_request("/people").parse.inject({}) do |a, e|
   a[e["user"]["id"]] = ActiveSupport::HashWithIndifferentAccess.new(e["user"])
